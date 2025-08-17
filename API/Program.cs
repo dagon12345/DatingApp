@@ -21,6 +21,7 @@ builder.Services.AddCors();
 
 //Lifetime services for dependency injection
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IMemberRepository, MemberRepository>();
 //Add authentication services
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
@@ -48,5 +49,21 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+//Trigger the seed class
+using var scope = app.Services.CreateScope();
+var services = scope.ServiceProvider;
+try
+{
+    var context = services.GetRequiredService<AppDbContext>();
+    await context.Database.MigrateAsync();
+    await Seed.SeedUsers(context);
+}
+catch (Exception ex)
+{
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "An error occured during migration");
+    throw;
+}
 
 app.Run();
